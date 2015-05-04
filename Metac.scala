@@ -59,17 +59,15 @@ object Metac extends App {
         else if (flags.contains("--dotty")) scala.meta.dialects.Dotty
         else scala.meta.dialects.Scala211 // default is Scala211
       }
-      val tokens: Tokens = new java.io.File(path).tokens
+      val scannerTokens = new java.io.File(path).tokens
       if (flags.contains("--censored")) {
-        val tokenIterator = new scala.meta.internal.parsers.Parser(Input.String(source)).in
-        val head = tokenIterator.token
-        val rest = tokenIterator.toList
-        val censoredToks = head +: rest
-        censoredToks.foreach(token => println(token.show[Raw]))
+        val parserTokens = new scala.meta.internal.parsers.Parser(Input.String(source)).parserTokens
+        parserTokens.foreach(token => println(token.show[Raw]))
       } else {
-        tokens.foreach(token => println(token.show[Raw]))
+        scannerTokens.foreach(token => println(token.show[Raw]))
       }
       // check #1: everything's covered
+      val tokens = scannerTokens
       var isFail = false
       def fail(msg: String) = { isFail = true; println(msg) }
       val bitmap = new Array[Boolean](source.length)
