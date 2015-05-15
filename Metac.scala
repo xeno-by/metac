@@ -112,10 +112,7 @@ object Metac extends App {
           case x: Some[_] => loop(x.get)
           case x => true
         }
-        tree.origin match {
-          case _: Origin.Parsed => tree.productIterator.toList.forall(loop)
-          case _ => false
-        }
+        tree.tokens.isAuthentic && tree.productIterator.toList.forall(loop)
       }
       if (!check(result)) println("BROKEN POSITIONS")
     case "typecheck" =>
