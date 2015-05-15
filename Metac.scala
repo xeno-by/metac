@@ -74,7 +74,7 @@ object Metac extends App {
       val tokenmap = scala.collection.mutable.Map[Int, List[Token]]()
       tokens.foreach(token => {
         var i = token.start
-        while (i <= token.end) {
+        while (i < token.end) {
           if (i < 0 || source.length <= i) fail("TOKEN OUT OF BOUNDS AT " + i + ": " + token)
           else {
             tokenmap(i) = token +: tokenmap.getOrElse(i, Nil)
