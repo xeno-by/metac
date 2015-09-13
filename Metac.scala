@@ -1,9 +1,11 @@
 package scala.meta
 package tools
 
+import scala.meta.dialects.Scala211
 import scala.{meta => api}
+import scala.meta.internal.{ast => m}
+import scala.meta.Toolbox
 import scala.meta.ui.Positions.Colorful
-import scala.meta.internal.{ast => impl}
 
 object Metac extends App {
   val (flags, Array(command, path, _*)) = args.partition(_.startsWith("-"))
@@ -16,9 +18,9 @@ object Metac extends App {
         dir.listFiles.filter(_.isFile).filter(_.getName.endsWith(".scala")).map(file => files = file +: files)
         dir.listFiles.filter(_.isDirectory).map(loop)
       }
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2116/src/library"))
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2116/src/reflect"))
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2116/src/compiler"))
+      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/library"))
+      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/reflect"))
+      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/compiler"))
       val contents = files.map(file => (file, scala.io.Source.fromFile(file).mkString)).toMap
       val compilerCommand = new scala.tools.nsc.CompilerCommand(Nil, _ => ???)
       val reporter = new scala.tools.nsc.reporters.StoreReporter
@@ -62,8 +64,10 @@ object Metac extends App {
       val scannerTokens = new java.io.File(path).tokens
       if (flags.contains("--censored")) {
         val parserTokens = new scala.meta.internal.parsers.Parser(Input.String(source)).parserTokens
+        // parserTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
         parserTokens.foreach(token => println(token.show[Raw]))
       } else {
+        // scannerTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
         scannerTokens.foreach(token => println(token.show[Raw]))
       }
       // check #1: everything's covered
@@ -124,23 +128,24 @@ object Metac extends App {
           val optionLines = if (scanner.hasNext()) scanner.next() else ""
           optionLines.split('\n').mkString(" ")
         }
-        if (flags.contains("--scala211")) Scalahost.mkStandaloneContext(options)
+        if (flags.contains("--scala211")) Toolbox(options)
         else if (flags.contains("--dotty")) sys.error("scala.meta can't be hosted in Dotty yet")
-        else Scalahost.mkStandaloneContext(options) // default is Scala211
+        else Toolbox(options) // default is Scala211
       }
       val doesntHavePackages = !source.contains("package ")
       val possiblyWrappedSource = if (doesntHavePackages) s"class Dummy { def dummy: Unit = { locally { $source }; (); }; }" else source
-      val possiblyWrappedResult = c.define(possiblyWrappedSource)
+      val possiblyWrappedArtifact = c.load(Artifact(possiblyWrappedSource))
+      val Seq(possiblyWrappedResult) = possiblyWrappedArtifact.sources
       val result = {
         if (doesntHavePackages) {
           possiblyWrappedResult match {
-            case impl.Source(List(
-                  impl.Defn.Class(_, _, _, _,
-                    impl.Template(_, _, _, Some(List(
-                      impl.Defn.Def(_, _, _, _, _,
-                        impl.Term.Block(List(impl.Term.Apply(_, List(result)), impl.Lit.Unit()))))))))) =>
+            case m.Source(List(
+                  m.Defn.Class(_, _, _, _,
+                    m.Template(_, _, _, Some(List(
+                      m.Defn.Def(_, _, _, _, _,
+                        m.Term.Block(List(m.Term.Apply(_, List(result)), m.Lit.Unit()))))))))) =>
               result match {
-                case impl.Term.Block(List(single)) => single
+                case m.Term.Block(List(single)) => single
                 case other => other
               }
             case _ =>
