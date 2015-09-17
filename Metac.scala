@@ -121,19 +121,23 @@ object Metac extends App {
       if (!check(result)) println("BROKEN POSITIONS")
     case "typecheck" =>
       implicit val c = {
+        val scalaLibraryJar = "/Users/xeno_by/.ivy2/cache/org.scala-lang/scala-library/jars/scala-library-2.11.7.jar"
         val options = {
           // http://stackoverflow.com/questions/5711084/java-runtime-getruntime-getting-output-from-executing-a-command-line-program
           val cmd = Array("scalac-options")
           val scanner = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A")
-          val optionLines = if (scanner.hasNext()) scanner.next() else ""
-          optionLines.split('\n').mkString(" ")
+          val options = if (scanner.hasNext()) scanner.next() else ""
+          var optionLines = options.split('\n')
+          optionLines :+= ("-cp " + scalaLibraryJar)
+          optionLines.mkString(" ")
         }
-        if (flags.contains("--scala211")) Toolbox(options)
+        if (flags.contains("--scala211")) Toolbox(options, Artifact(scalaLibraryJar))
         else if (flags.contains("--dotty")) sys.error("scala.meta can't be hosted in Dotty yet")
-        else Toolbox(options) // default is Scala211
+        else Toolbox(options, Artifact(scalaLibraryJar)) // default is Scala211
       }
       val doesntHavePackages = !source.contains("package ")
-      val possiblyWrappedSource = if (doesntHavePackages) s"class Dummy { def dummy: Unit = { locally { $source }; (); }; }" else source
+      val possiblyWrappedString = if (doesntHavePackages) s"class Dummy { def dummy: Unit = { locally { $source }; (); }; }" else source
+      val possiblyWrappedSource = possiblyWrappedString.parse[Source]
       val possiblyWrappedArtifact = c.load(Artifact(possiblyWrappedSource))
       val Seq(possiblyWrappedResult) = possiblyWrappedArtifact.sources
       val result = {
