@@ -5,7 +5,7 @@ import scala.meta.dialects.Scala211
 import scala.{meta => api}
 import scala.meta.internal.{ast => m}
 import scala.meta.Toolbox
-import scala.meta.ui.Positions.Colorful
+import scala.meta.internal.ui.Positions
 
 object Metac extends App {
   val (flags, Array(command, path, _*)) = args.partition(_.startsWith("-"))
@@ -63,7 +63,7 @@ object Metac extends App {
       }
       val scannerTokens = new java.io.File(path).tokens
       if (flags.contains("--censored")) {
-        val parserTokens = new scala.meta.internal.parsers.Parser(Input.String(source)).parserTokens
+        val parserTokens = new scala.meta.internal.parsers.ScalametaParser(Input.String(source)).parserTokens
         // parserTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
         parserTokens.foreach(token => println(token.show[Raw]))
       } else {
