@@ -4,8 +4,8 @@ package tools
 import scala.meta.dialects.Scala211
 import scala.{meta => api}
 import scala.meta.internal.{ast => m}
-import scala.meta.Toolbox
-import scala.meta.internal.ui.Positions
+import scala.meta.internal.prettyprinters._
+import PositionStyle.Colorful
 
 object Metac extends App {
   val (flags, Array(command, path, _*)) = args.partition(_.startsWith("-"))
@@ -130,6 +130,13 @@ object Metac extends App {
           var optionLines = options.split('\n')
           optionLines :+= ("-cp " + scalaLibraryJar)
           optionLines.mkString(" ")
+        }
+        def Toolbox(options: String, artifacts: Artifact*)(implicit resolver: Resolver): Context = {
+          import scala.meta.internal.hosts.scalac.contexts.{Compiler => Compiler}
+          import scala.meta.internal.hosts.scalac.contexts.{Proxy => ProxyImpl}
+          new ProxyImpl(Compiler(options), Domain(artifacts: _*)) {
+            override def toString = s"""Toolbox("$options", ${artifacts.mkString(", ")})"""
+          }
         }
         if (flags.contains("--scala211")) Toolbox(options, Artifact(scalaLibraryJar))
         else if (flags.contains("--dotty")) sys.error("scala.meta can't be hosted in Dotty yet")
