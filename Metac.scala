@@ -61,7 +61,7 @@ object Metac extends App {
         else if (flags.contains("--dotty")) scala.meta.dialects.Dotty
         else scala.meta.dialects.Scala211 // default is Scala211
       }
-      val scannerTokens = new java.io.File(path).tokens
+      val scannerTokens = new java.io.File(path).tokenize.get
       if (flags.contains("--censored")) {
         val parserTokens = new scala.meta.internal.parsers.ScalametaParser(Input.String(source)).parserTokens
         // parserTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
@@ -104,8 +104,8 @@ object Metac extends App {
       }
       val result = {
         val doesntHavePackages = !source.contains("package ")
-        if (doesntHavePackages) new java.io.File(path).parse[Stat]
-        else new java.io.File(path).parse[Source]
+        if (doesntHavePackages) new java.io.File(path).parse[Stat].get
+        else new java.io.File(path).parse[Source].get
       }
       println(result.show[Code])
       println(result.show[Positions])
@@ -119,54 +119,54 @@ object Metac extends App {
         tree.tokens.isAuthentic && tree.productIterator.toList.forall(loop)
       }
       if (!check(result)) println("BROKEN POSITIONS")
-    case "typecheck" =>
-      implicit val c = {
-        val scalaLibraryJar = "/Users/xeno_by/.ivy2/cache/org.scala-lang/scala-library/jars/scala-library-2.11.7.jar"
-        val options = {
-          // http://stackoverflow.com/questions/5711084/java-runtime-getruntime-getting-output-from-executing-a-command-line-program
-          val cmd = Array("scalac-options")
-          val scanner = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A")
-          val options = if (scanner.hasNext()) scanner.next() else ""
-          var optionLines = options.split('\n')
-          optionLines :+= ("-cp " + scalaLibraryJar)
-          optionLines.mkString(" ")
-        }
-        def Toolbox(options: String, artifacts: Artifact*)(implicit resolver: Resolver): Context = {
-          import scala.meta.internal.hosts.scalac.contexts.{Compiler => Compiler}
-          import scala.meta.internal.hosts.scalac.contexts.{Proxy => ProxyImpl}
-          new ProxyImpl(Compiler(options), Domain(artifacts: _*)) {
-            override def toString = s"""Toolbox("$options", ${artifacts.mkString(", ")})"""
-          }
-        }
-        if (flags.contains("--scala211")) Toolbox(options, Artifact(scalaLibraryJar))
-        else if (flags.contains("--dotty")) sys.error("scala.meta can't be hosted in Dotty yet")
-        else Toolbox(options, Artifact(scalaLibraryJar)) // default is Scala211
-      }
-      val doesntHavePackages = !source.contains("package ")
-      val possiblyWrappedString = if (doesntHavePackages) s"class Dummy { def dummy: Unit = { locally { $source }; (); }; }" else source
-      val possiblyWrappedSource = possiblyWrappedString.parse[Source]
-      val possiblyWrappedArtifact = c.load(Artifact(possiblyWrappedSource))
-      val Seq(possiblyWrappedResult) = possiblyWrappedArtifact.sources
-      val result = {
-        if (doesntHavePackages) {
-          possiblyWrappedResult match {
-            case m.Source(List(
-                  m.Defn.Class(_, _, _, _,
-                    m.Template(_, _, _, Some(List(
-                      m.Defn.Def(_, _, _, _, _,
-                        m.Term.Block(List(m.Term.Apply(_, List(result)), m.Lit.Unit()))))))))) =>
-              result match {
-                case m.Term.Block(List(single)) => single
-                case other => other
-              }
-            case _ =>
-              possiblyWrappedResult
-          }
-        } else {
-          possiblyWrappedResult
-        }
-      }
-      println(result.show[Code])
-      println(result.show[Semantics])
+    // case "typecheck" =>
+    //   implicit val c = {
+    //     val scalaLibraryJar = "/Users/xeno_by/.ivy2/cache/org.scala-lang/scala-library/jars/scala-library-2.11.7.jar"
+    //     val options = {
+    //       // http://stackoverflow.com/questions/5711084/java-runtime-getruntime-getting-output-from-executing-a-command-line-program
+    //       val cmd = Array("scalac-options")
+    //       val scanner = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A")
+    //       val options = if (scanner.hasNext()) scanner.next() else ""
+    //       var optionLines = options.split('\n')
+    //       optionLines :+= ("-cp " + scalaLibraryJar)
+    //       optionLines.mkString(" ")
+    //     }
+    //     def Toolbox(options: String, artifacts: Artifact*)(implicit resolver: Resolver): Context = {
+    //       import scala.meta.internal.hosts.scalac.contexts.{Compiler => Compiler}
+    //       import scala.meta.internal.hosts.scalac.contexts.{Adapter => AdapterImpl}
+    //       new AdapterImpl(Compiler(options), Domain(artifacts: _*)) {
+    //         override def toString = s"""Toolbox("$options", ${artifacts.mkString(", ")})"""
+    //       }
+    //     }
+    //     if (flags.contains("--scala211")) Toolbox(options, Artifact(scalaLibraryJar))
+    //     else if (flags.contains("--dotty")) sys.error("scala.meta can't be hosted in Dotty yet")
+    //     else Toolbox(options, Artifact(scalaLibraryJar)) // default is Scala211
+    //   }
+    //   val doesntHavePackages = !source.contains("package ")
+    //   val possiblyWrappedString = if (doesntHavePackages) s"class Dummy { def dummy: Unit = { locally { $source }; (); }; }" else source
+    //   val possiblyWrappedSource = possiblyWrappedString.parse[Source]
+    //   val possiblyWrappedArtifact = c.load(Artifact(possiblyWrappedSource))
+    //   val Seq(possiblyWrappedResult) = possiblyWrappedArtifact.sources
+    //   val result = {
+    //     if (doesntHavePackages) {
+    //       possiblyWrappedResult match {
+    //         case m.Source(List(
+    //               m.Defn.Class(_, _, _, _,
+    //                 m.Template(_, _, _, Some(List(
+    //                   m.Defn.Def(_, _, _, _, _,
+    //                     m.Term.Block(List(m.Term.Apply(_, List(result)), m.Lit(())))))))))) =>
+    //           result match {
+    //             case m.Term.Block(List(single)) => single
+    //             case other => other
+    //           }
+    //         case _ =>
+    //           possiblyWrappedResult
+    //       }
+    //     } else {
+    //       possiblyWrappedResult
+    //     }
+    //   }
+    //   println(result.show[Code])
+    //   println(result.show[Semantics])
   }
 }
