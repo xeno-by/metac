@@ -5,70 +5,26 @@ import scala.meta.dialects.Scala211
 import scala.{meta => api}
 import scala.meta.internal.{ast => m}
 import scala.meta.internal.prettyprinters._
-import PositionStyle.Colorful
 
 object Metac extends App {
   val (flags, Array(command, path, _*)) = args.partition(_.startsWith("-"))
   implicit val codec = scala.io.Codec(java.nio.charset.Charset.forName("UTF-8"))
   val source = scala.io.Source.fromFile(new java.io.File(path)).mkString
   command match {
-    case "benchmark" =>
-      var files = List[java.io.File]()
-      def loop(dir: java.io.File): Unit = {
-        dir.listFiles.filter(_.isFile).filter(_.getName.endsWith(".scala")).map(file => files = file +: files)
-        dir.listFiles.filter(_.isDirectory).map(loop)
-      }
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/library"))
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/reflect"))
-      loop(new java.io.File("/Users/xeno_by/Projects/Scala2117/src/compiler"))
-      val contents = files.map(file => (file, scala.io.Source.fromFile(file).mkString)).toMap
-      val compilerCommand = new scala.tools.nsc.CompilerCommand(Nil, _ => ???)
-      val reporter = new scala.tools.nsc.reporters.StoreReporter
-      val global = new scala.tools.nsc.Global(compilerCommand.settings, reporter)
-      val run = new global.Run
-      def parseReflect(file: java.io.File, contents: String): Unit = {
-        global.newUnitParser(contents, "<adhoc>").parse
-        if (reporter.infos.nonEmpty) println(file.getAbsolutePath)
-        reporter.reset()
-      }
-      val startReflect = System.currentTimeMillis()
-      var i = 0
-      while (i < 40) {
-        if (((i + 1) % 10) == 0) println(i + 1)
-        contents.foreach{ case (f, content) => parseReflect(f, content) }
-        i += 1
-      }
-      val endReflect = System.currentTimeMillis()
-      println("Reflect parsing: " + (endReflect - startReflect) / 1000.0)
-      def parseMeta(file: java.io.File, contents: String): Unit = {
-        import scala.meta.dialects.Scala211
-        try contents.parse[Source]
-        catch { case ex: Throwable => println(file.getAbsolutePath); throw ex }
-      }
-      val startMeta = System.currentTimeMillis()
-      var j = 0
-      while (j < 40) {
-        if (((j + 1) % 10) == 0) println(j + 1)
-        contents.foreach{ case (f, content) => parseMeta(f, content) }
-        j += 1
-      }
-      val endMeta = System.currentTimeMillis()
-      println("Meta parsing: " + (endMeta - startMeta) / 1000.0)
-      println(((endMeta - startMeta) / (endReflect - startReflect)) + "x")
     case "tokenize" =>
-      implicit val dialect: scala.meta.Dialect = {
+      val dialect: scala.meta.Dialect = {
         if (flags.contains("--scala211")) scala.meta.dialects.Scala211
         else if (flags.contains("--dotty")) scala.meta.dialects.Dotty
         else scala.meta.dialects.Scala211 // default is Scala211
       }
       val scannerTokens = new java.io.File(path).tokenize.get
       if (flags.contains("--censored")) {
-        val parserTokens = new scala.meta.internal.parsers.ScalametaParser(Input.String(source)).parserTokens
-        // parserTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
-        parserTokens.foreach(token => println(token.show[Raw]))
+        val parserTokens = new scala.meta.internal.parsers.ScalametaParser(source.tokenize.get, dialect).parserTokens
+        // parserTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
+        parserTokens.foreach(token => println(token.show[Structure]))
       } else {
-        // scannerTokens.foreach(token => println(token.show[Raw] + " of class " + token.getClass))
-        scannerTokens.foreach(token => println(token.show[Raw]))
+        // scannerTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
+        scannerTokens.foreach(token => println(token.show[Structure]))
       }
       // check #1: everything's covered
       val tokens = scannerTokens
@@ -90,11 +46,11 @@ object Metac extends App {
       })
       bitmap.zipWithIndex.filter(!_._1).foreach{ case (_, i) => fail("TOKENS DON'T COVER " + i) }
       // check #2: tostring works
-      if (!isFail && source != tokens.map(_.show[Code]).mkString) {
+      if (!isFail && source != tokens.map(_.show[Syntax]).mkString) {
         isFail = true
         println("CORRELATION FAILED")
         println("EXPECTED: \n" + source)
-        println("ACTUAL: \n" + tokens.map(_.show[Code]).mkString)
+        println("ACTUAL: \n" + tokens.map(_.show[Syntax]).mkString)
       }
     case "parse" =>
       implicit val dialect: scala.meta.Dialect = {
@@ -102,12 +58,16 @@ object Metac extends App {
         else if (flags.contains("--dotty")) scala.meta.dialects.Dotty
         else scala.meta.dialects.Scala211 // default is Scala211
       }
+      implicit val sliceStyle: SliceStyle = {
+        if (flags.contains("--sliced")) SliceStyle.Show
+        else SliceStyle.Hide
+      }
       val result = {
         val doesntHavePackages = !source.contains("package ")
         if (doesntHavePackages) new java.io.File(path).parse[Stat].get
         else new java.io.File(path).parse[Source].get
       }
-      println(result.show[Code])
+      println(result.show[Syntax])
       println(result.show[Positions])
       def check(tree: Tree): Boolean = {
         def loop(x: Any): Boolean = x match {
