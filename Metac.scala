@@ -2,11 +2,13 @@ package scala.meta
 package tools
 
 import scala.meta.internal.prettyprinters._
+import scala.meta.internal.parsers.ScalametaParser
 
 object Metac extends App {
   val (flags, Array(command, path, _*)) = args.partition(_.startsWith("-"))
   implicit val codec = scala.io.Codec(java.nio.charset.Charset.forName("UTF-8"))
   val input = scala.io.Source.fromFile(new java.io.File(path)).mkString
+  val verbose = flags.contains("--verbose") || flags.contains("-v")
   implicit val dialect: scala.meta.Dialect = {
     val prefix = "--dialect="
     val s_dialect = flags.find(_.startsWith(prefix)).map(_.stripPrefix(prefix))
@@ -14,14 +16,19 @@ object Metac extends App {
   }
   command match {
     case "tokenize" =>
+      def printToken(token: Token): Unit = {
+        var message = token.show[Structure]
+        if (verbose) message = token.productPrefix + " " + message
+        println(message)
+      }
       val scannerTokens = input.tokenize.get
       if (flags.contains("--censored")) {
-        val parserTokens = new scala.meta.internal.parsers.ScalametaParser(scannerTokens, dialect).parserTokens
+        val parserTokens = new ScalametaParser(Input.String(input), dialect).parserTokens
         // parserTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
-        parserTokens.foreach(token => println(token.show[Structure]))
+        parserTokens.foreach(printToken)
       } else {
         // scannerTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
-        scannerTokens.foreach(token => println(token.show[Structure]))
+        scannerTokens.foreach(printToken)
       }
       // check #1: everything's covered
       val tokens = scannerTokens
@@ -50,10 +57,7 @@ object Metac extends App {
         println("ACTUAL: \n" + tokens.map(_.show[Syntax]).mkString)
       }
     case "parse" =>
-      implicit val sliceStyle: SliceStyle = {
-        if (flags.contains("--sliced")) SliceStyle.Show
-        else SliceStyle.Hide
-      }
+      implicit val sliceStyle: SliceStyle = if (verbose) SliceStyle.Show else SliceStyle.Hide
       val result = {
         val doesntHavePackages = !input.contains("package ")
         if (doesntHavePackages) new java.io.File(path).parse[Stat].get
