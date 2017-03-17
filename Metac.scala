@@ -9,11 +9,6 @@ object Metac extends App {
   implicit val codec = scala.io.Codec(java.nio.charset.Charset.forName("UTF-8"))
   val input = scala.io.Source.fromFile(new java.io.File(path)).mkString
   val verbose = flags.contains("--verbose") || flags.contains("-v")
-  implicit val dialect: scala.meta.Dialect = {
-    val prefix = "--dialect="
-    val s_dialect = flags.find(_.startsWith(prefix)).map(_.stripPrefix(prefix))
-    s_dialect.map(Dialect.forName).getOrElse(scala.meta.dialects.Scala211)
-  }
   command match {
     case "tokenize" =>
       def printToken(token: Token): Unit = {
@@ -23,7 +18,7 @@ object Metac extends App {
       }
       val scannerTokens = input.tokenize.get
       if (flags.contains("--censored")) {
-        val parserTokens = new ScalametaParser(Input.String(input), dialect).parserTokens
+        val parserTokens = new ScalametaParser(Input.String(input), scala.meta.dialects.Scala211).parserTokens
         // parserTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
         parserTokens.foreach(printToken)
       } else {
@@ -65,15 +60,7 @@ object Metac extends App {
       }
       println(result.show[Syntax])
       println(result.show[Positions])
-      def check(tree: Tree): Boolean = {
-        def loop(x: Any): Boolean = x match {
-          case x: Tree => check(x)
-          case x: ::[_] => x.forall(loop)
-          case x: Some[_] => loop(x.get)
-          case x => true
-        }
-        tree.tokens.isAuthentic && tree.productIterator.toList.forall(loop)
-      }
-      if (!check(result)) println("BROKEN POSITIONS")
+    case "typecheck" =>
+      println("not supported")
   }
 }
