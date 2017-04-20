@@ -25,7 +25,7 @@ object Metac extends App {
       }
       val scannerTokens = input.tokenize.get
       if (flags.contains("--censored")) {
-        val parserTokens = new ScalametaParser(Input.String(input), dialect).parserTokens
+        val parserTokens = new ScalametaParser(Input.String(input), scala.meta.dialects.Scala211).parserTokens
         // parserTokens.foreach(token => println(token.show[Structure] + " of class " + token.getClass))
         parserTokens.foreach(printToken)
       } else {
@@ -67,17 +67,9 @@ object Metac extends App {
       }
       println(result.show[Syntax])
       println(result.show[Positions])
-      def check(tree: Tree): Boolean = {
-        def loop(x: Any): Boolean = x match {
-          case x: Tree => check(x)
-          case x: ::[_] => x.forall(loop)
-          case x: Some[_] => loop(x.get)
-          case x => true
-        }
-        tree.pos.nonEmpty && tree.productIterator.toList.forall(loop)
-      }
-      if (!check(result)) println("BROKEN POSITIONS")
     case "unpickle" =>
       println(Database.fromClasspath(path))
+    case "typecheck" =>
+      println("not supported")
   }
 }
