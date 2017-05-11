@@ -68,7 +68,7 @@ object Metac extends App {
       println(result.show[Syntax])
       println(result.show[Positions])
     case "unpickle" =>
-      println(Database.fromClasspath(path))
+      println(Database.load(Classpath("."), Sourcepath(".")))
     case "typecheck" =>
       println("not supported")
   }
