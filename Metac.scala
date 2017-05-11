@@ -5,7 +5,7 @@ import scala.meta.internal.prettyprinters._
 import scala.meta.internal.parsers.ScalametaParser
 
 object Metac extends App {
-  val (flags, List(command, path, _*)) = args.toList.partition(_.startsWith("-"))
+  val (flags, command +: (rest @ List(path, _*))) = args.toList.partition(_.startsWith("-"))
   lazy val input = {
     implicit val codec = scala.io.Codec(java.nio.charset.Charset.forName("UTF-8"))
     scala.io.Source.fromFile(new java.io.File(path)).mkString
@@ -68,7 +68,9 @@ object Metac extends App {
       println(result.show[Syntax])
       println(result.show[Positions])
     case "unpickle" =>
-      println(Database.load(Classpath("."), Sourcepath(".")))
+      val classpath = Classpath(rest(0))
+      val sourcepath = Sourcepath(rest(1))
+      println(Database.load(classpath, sourcepath))
     case "typecheck" =>
       println("not supported")
   }
