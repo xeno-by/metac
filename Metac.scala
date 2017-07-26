@@ -1,6 +1,7 @@
 package scala.meta
 package tools
 
+import java.nio.file._
 import scala.meta.internal.prettyprinters._
 import scala.meta.internal.parsers.ScalametaParser
 
@@ -68,9 +69,20 @@ object Metac extends App {
       println(result.show[Syntax])
       println(result.show[Positions])
     case "unpickle" =>
-      val classpath = Classpath(rest(0))
-      val sourcepath = Sourcepath(rest(1))
-      println(Database.load(classpath, sourcepath))
+      rest match {
+        case List(s_classpath, s_sourcepath) =>
+          val classpath = Classpath(s_classpath)
+          val sourcepath = Sourcepath(s_sourcepath)
+          println(Database.load(classpath, sourcepath))
+        case List(s_semanticdb) if s_semanticdb.endsWith(".semanticdb") =>
+          val bytes = Files.readAllBytes(Paths.get(s_semanticdb))
+          println(Database.load(bytes))
+        case List(s_classpath) =>
+          val classpath = Classpath(s_classpath)
+          println(Database.load(classpath))
+        case _ =>
+          println("not supported")
+      }
     case "typecheck" =>
       println("not supported")
   }
